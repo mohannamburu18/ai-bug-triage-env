@@ -1,0 +1,115 @@
+name: bug-triage-env
+version: "1.0.0"
+description: >
+  A real-world OpenEnv environment that simulates software bug triage.
+  An AI agent receives bug reports and must assign priority, labels,
+  team ownership, and decide if more information is needed.
+  Covers easy, medium, and hard difficulty levels with 10+ canonical bugs.
+
+author: Likhitha Sankula
+tags:
+  - openenv
+  - bug-triage
+  - software-engineering
+  - nlp
+  - real-world
+
+environment:
+  type: episodic
+  interface: http
+  framework: fastapi
+
+observation_space:
+  type: structured
+  schema: TriageObservation
+  fields:
+    current_bug:
+      type: object
+      description: "The bug report to triage (title, body, component, stacktrace, affected_users, reproducible)"
+    queue_remaining:
+      type: integer
+      description: "Number of bugs left in the episode queue"
+    episode_step:
+      type: integer
+      description: "Current step index"
+    last_action_feedback:
+      type: string
+      description: "Textual feedback from the previous action including score breakdown"
+    cumulative_score:
+      type: float
+      description: "Running average score for the episode so far"
+    done:
+      type: boolean
+
+action_space:
+  type: structured
+  schema: TriageAction
+  fields:
+    priority:
+      type: string
+      enum: [critical, high, medium, low]
+      description: "Urgency level of the bug"
+    labels:
+      type: array
+      items: string
+      enum: [bug, performance, security, ux, crash, data-loss, feature-request]
+      description: "One or more labels describing the bug type"
+    assigned_team:
+      type: string
+      enum: [backend, frontend, infra, security, mobile, data]
+      description: "Engineering team responsible for the fix"
+    needs_more_info:
+      type: boolean
+      description: "True if the report is too vague to act on"
+    estimated_fix_days:
+      type: integer
+      minimum: 1
+      maximum: 90
+      description: "Estimated calendar days to fix"
+
+reward:
+  type: continuous
+  range: [0.0, 1.0]
+  description: >
+    Weighted combination of sub-scores per bug:
+    - Priority accuracy (40%): partial credit for adjacent priorities
+    - Label F1 score (25%): precision/recall against canonical labels
+    - Team assignment (25%): binary correct/incorrect
+    - Info-request decision (10%): binary correct/incorrect
+    Extra penalty for misclassifying critical security bugs.
+
+tasks:
+  - id: easy_triage
+    name: Easy Bug Triage
+    difficulty: easy
+    max_steps: 3
+    passing_score: 0.70
+    description: "Triage 3 clearly described bugs with strong priority signals."
+
+  - id: medium_triage
+    name: Medium Bug Triage
+    difficulty: medium
+    max_steps: 5
+    passing_score: 0.65
+    description: "Triage 5 bugs with mixed ambiguity — performance, crashes, exports."
+
+  - id: hard_triage
+    name: Hard Bug Triage — Full Backlog
+    difficulty: hard
+    max_steps: 10
+    passing_score: 0.60
+    description: "Triage all 10 bugs including vague, non-reproducible, and data-incident reports."
+
+endpoints:
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
+  tasks: GET /tasks
+  grader: POST /grader
+  baseline: GET /baseline
+  health: GET /health
+
+docker:
+  base_image: python:3.11-slim
+  port: 7860
+  startup_command: "uvicorn server:app --host 0.0.0.0 --port 7860"
