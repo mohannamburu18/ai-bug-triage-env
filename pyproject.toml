@@ -1,0 +1,15 @@
+[project]
+name = "ai-bug-triage-env"
+version = "0.1.0"
+description = "AI Bug Triage Environment"
+authors = [
+    { name = "Mohan Namburu" }
+]
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
